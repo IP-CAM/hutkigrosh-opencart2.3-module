@@ -11,4 +11,5 @@
     $('#button-confirm').on('click', function () {
         $('#button-confirm').button('loading');
     });
-    //--></script>
+    //-->
+</script>

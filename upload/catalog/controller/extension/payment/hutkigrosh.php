@@ -1,31 +1,26 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
-include_once 'hutkigrosh_api.php';
+
+use esas\hutkigrosh\controllers\ControllerAddBill;
+use esas\hutkigrosh\controllers\ControllerAlfaclick;
+use esas\hutkigrosh\controllers\ControllerNotifyOpencart;
+use esas\hutkigrosh\controllers\ControllerWebpayFormOpencart;
+use esas\hutkigrosh\utils\Logger;
+use esas\hutkigrosh\Registry as HutkigroshRegistry;
+use esas\hutkigrosh\view\client\CompletionPanel;
+use esas\hutkigrosh\wrappers\OrderWrapperOpencart;
+
+require_once(dirname(dirname(dirname(dirname(dirname(__FILE__))))) . '/system/library/esas/hutkigrosh/init.php');
 
 class ControllerExtensionPaymentHutkiGrosh extends Controller
 {
-    // Транслитерация строк.
-    const HUTKIGROSH_STOREID = 'hutkigrosh_storeid';
-    const HUTKIGROSH_STORE_NAME = 'payment_hutkigrosh_store';
-    const HUTKIGROSH_LOGIN = 'hutkigrosh_login';
-    const HUTKIGROSH_PASSWORD = 'hutkigrosh_pswd';
-    const HUTKIGROSH_SANDBOX = 'hutkigrosh_test';
-    const HUTKIGROSH_MODULE_STATUS = 'payment_hutkigrosh_status';
-    const HUTKIGROSH_MODULE_SORT_ORDER = 'payment_hutkigrosh_sort_order';
-    const HUTKIGROSH_ORDER_STATUS_PENDING = 'hutkigrosh_order_status_pending';
-    const HUTKIGROSH_ORDER_STATUS_PAYED = 'hutkigrosh_order_status_payed';
-    const HUTKIGROSH_ORDER_STATUS_ERROR = 'hutkigrosh_order_status_error';
-    const HUTKIGROSH_ERIP_TREE_PATH = 'hutkigrosh_erip_tree_path';
-    const HUTKIGROSH_EMAIL_NOTIFICATION = 'hutkigrosh_email_notification';
-    const HUTKIGROSH_SMS_NOTIFICATION = 'hutkigrosh_sms_notification';
-
     public function index()
     {
         $this->language->load('extension/payment/hutkigrosh');
         $data['text_testmode'] = $this->language->get('text_testmode');
         $data['button_confirm'] = $this->language->get('button_confirm');
         $data['text_loading'] = $this->language->get('text_loading');
-        $data['testmode'] = $this->config->get(self::HUTKIGROSH_SANDBOX);
+        $data['testmode'] = HutkigroshRegistry::getRegistry()->getConfigurationWrapper()->isSandbox();
         $data['action'] = $this->url->link('extension/payment/hutkigrosh/pay');
         $data['continue'] = $this->url->link('checkout/success');
 
@@ -39,73 +34,70 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
 
     public function pay()
     {
-        //инициализируем URL для HG (тестовы/рабочий)
         try {
-            $this->language->load('extension/payment/hutkigrosh');
-            if (!isset($this->session->data['order_id'])) {
+            $orderId = $this->session->data['order_id'];
+            if (!isset($orderId)) {
                 $this->redirect($this->url->link('checkout/checkout'));
                 return false;
             }
-            $this->load->model('checkout/order');
-            $localOrderInfo = $this->model_checkout_order->getOrder($this->session->data['order_id']);
-            $this->model_checkout_order->addOrderHistory($this->session->data['order_id'], $this->config->get(self::HUTKIGROSH_ORDER_STATUS_PENDING));
-
-            $this->test = $this->config->get(self::HUTKIGROSH_SANDBOX);
-            $hg = new \Alexantr\HootkiGrosh\HootkiGrosh($this->config->get(self::HUTKIGROSH_SANDBOX));
-            $res = $hg->apiLogIn($this->config->get(self::HUTKIGROSH_LOGIN), $this->config->get(self::HUTKIGROSH_PASSWORD));
-
-            // Ошибка авторизации
-            if (!$res) {
-                $error = $hg->getError();
-                $hg->apiLogOut(); // Завершаем сеанс
-                return $this->failure($error);
+            $configurationWrapper = HutkigroshRegistry::getRegistry()->getConfigurationWrapper();
+            $orderWrapper = new OrderWrapperOpencart($orderId, $this->registry);
+            // проверяем, привязан ли к заказу billid, если да,
+            // то счет не выставляем, а просто прорисовываем старницу
+            if (empty($orderWrapper->getBillId())) {
+                $controller = new ControllerAddBill();
+                $controller->process($orderWrapper);
             }
-
-            /// создаем заказ
-            $line_items = $this->cart->getProducts();
-            if (is_array($line_items)) {
-                foreach ($line_items as $line_item) {
-                    //$arItem['invItemId'] = $line_item['product_id'];
-                    $arItem['invItemId'] = $line_item['product_id'];
-                    $arItem['desc'] = $line_item['name'] . ' ' . $line_item['model'];
-                    $arItem['count'] = round($line_item['quantity']);
-                    $arItem['amt'] = $this->currency->format($line_item['total'], $localOrderInfo['currency_code'], $localOrderInfo['currency_value'], false);
-                    $arItems[] = $arItem;
-                    unset($arItem);
-                }
+            $completionPanel = new CompletionPanel($orderWrapper);
+            if ($configurationWrapper->isAlfaclickButtonEnabled()) {
+                $completionPanel->setAlfaclickUrl($this->url->link('extension/payment/hutkigrosh/alfaclick'));
             }
-//
-            $billNewRq = new \Alexantr\HootkiGrosh\BillNewRq();
-            $billNewRq->eripId = $this->config->get(self::HUTKIGROSH_STOREID);
-            $billNewRq->invId = $localOrderInfo["order_id"];
-            $billNewRq->fullName = $localOrderInfo['firstname'] . ' ' . $localOrderInfo['lastname'];
-            $billNewRq->mobilePhone = $localOrderInfo['telephone'];
-            $billNewRq->email = $localOrderInfo['email'];
-            $billNewRq->fullAddress = $localOrderInfo['payment_address_1'] . ' ' . $localOrderInfo['payment_address_2'] . ' ' . $localOrderInfo['payment_zone'];
-            $billNewRq->amount = $this->currency->format($localOrderInfo['total'], $localOrderInfo['currency_code'], $localOrderInfo['currency_value'], false);
-            $billNewRq->currency = $localOrderInfo['currency_code'];
-            $billNewRq->notifyByEMail = $this->config->get(self::HUTKIGROSH_EMAIL_NOTIFICATION);
-            $billNewRq->notifyByMobilePhone = $this->config->get(self::HUTKIGROSH_SMS_NOTIFICATION);
-            $billNewRq->products = $arItems;
-
-
-            $this->_billID = $hg->apiBillNew($billNewRq);
-            if (!$this->_billID) {
-                $error = $hg->getError();
-                $hg->apiLogOut(); // Завершаем сеанс
-                return $this->failure($error);
+            if ($configurationWrapper->isWebpayButtonEnabled()) {
+                $controller = new ControllerWebpayFormOpencart($this->registry);
+                $webpayResp = $controller->process($orderWrapper);
+                $completionPanel->setWebpayForm($webpayResp->getHtmlForm());
+                if (array_key_exists('status', $_REQUEST))
+                $completionPanel->setWebpayStatus($_REQUEST['status']);
             }
+            $data['completionPanel'] = $completionPanel;
 
-            $webPayRq = new \Alexantr\HootkiGrosh\WebPayRq();
-            $webPayRq->billId = $this->_billID;
-            $webPayRq->returnUrl = $this->url->link('extension/payment/hutkigrosh/callback') . "&" . "purchaseid=" . $this->_billID . "&status=complete";
-            $webPayRq->cancelReturnUrl = $this->url->link('extension/payment/hutkigrosh/callback') . "&" . "purchaseid=" . $this->_billID . "&status=error";
+            $this->language->load('extension/payment/hutkigrosh');
+            $this->document->setTitle($this->language->get('heading_title'));
+            $data['breadcrumbs'] = array();
+            $data['breadcrumbs'][] = array(
+                'text' => $this->language->get('text_home'),
+                'href' => $this->url->link('common/home')
+            );
+            $data['breadcrumbs'][] = array(
+                'text' => $this->language->get('text_basket'),
+                'href' => $this->url->link('checkout/cart')
+            );
+            $data['breadcrumbs'][] = array(
+                'text' => $this->language->get('text_checkout'),
+                'href' => $this->url->link('checkout/checkout', '', true)
+            );
+            $data['breadcrumbs'][] = array(
+                'text' => $this->language->get('text_success'),
+                'href' => $this->url->link('checkout/success')
+            );
+            $data['column_left'] = $this->load->controller('common/column_left');
+            $data['column_right'] = $this->load->controller('common/column_right');
+            $data['content_top'] = $this->load->controller('common/content_top');
+            $data['content_bottom'] = $this->load->controller('common/content_bottom');
+            $data['footer'] = $this->load->controller('common/footer');
+            $data['header'] = $this->load->controller('common/header');
+            $data['button_continue'] = $this->language->get('button_continue');
+            $data['button_continue_link'] = $this->url->link('checkout/success');
 
-            $webpayform = $hg->apiWebPay($webPayRq);
-            $hg->apiLogOut();
+            if (file_exists(DIR_TEMPLATE . $this->config->get('config_template') . 'extension/payment/hutkigrosh_checkout_success.tpl')) {
+                $templateView = $this->config->get('config_template') . 'extension/payment/hutkigrosh_checkout_success.tpl';
+            } else {
+                $templateView = 'extension/payment/hutkigrosh_checkout_success.tpl';
+            }
+            $this->response->setOutput($this->load->view($templateView, $data));
 
-            $this->createPage($this->_billID, $localOrderInfo, $webpayform, null);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            Logger::getLogger("payment")->error("Exception:", $e);
             return $this->failure($e->getMessage());
         }
     }
@@ -113,22 +105,13 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
 
     public function alfaclick()
     {
-        $hg = new \Alexantr\HootkiGrosh\HootkiGrosh($this->config->get(self::HUTKIGROSH_SANDBOX));
-        $res = $hg->apiLogIn($this->config->get(self::HUTKIGROSH_LOGIN), $this->config->get(self::HUTKIGROSH_PASSWORD));
-        if (!$res) {
-            echo $hg->getError();
-            $hg->apiLogOut();
-            exit;
+        try {
+            $controller = new ControllerAlfaclick();
+            $controller->process($this->request->post['billid'], $this->request->post['phone']);
+        } catch (Throwable $e) {
+            Logger::getLogger("alfaclick")->error("Exception: ", $e);
         }
-        $alfaclickRq = new \Alexantr\HootkiGrosh\AlfaclickRq();
-        $alfaclickRq->billId = $this->request->post['billid'];
-        $alfaclickRq->phone = $this->request->post['phone'];
-
-        $responceXML = $hg->apiAlfaClick($alfaclickRq);
-        $hg->apiLogOut();
-        echo intval($responceXML->__toString()) == '0' ? "error" : "ok";
     }
-
 
     protected function failure($error)
     {
@@ -136,134 +119,14 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
         $this->response->redirect($this->url->link('checkout/cart', '', true));
     }
 
-    public function callback()
-    {
-        try {
-            $biilId = $this->request->get['purchaseid'];
-            $this->checkOrderStatus($biilId);
-            $hg = new \Alexantr\HootkiGrosh\HootkiGrosh($this->config->get(self::HUTKIGROSH_SANDBOX));
-            $res = $hg->apiLogIn($this->config->get(self::HUTKIGROSH_LOGIN), $this->config->get(self::HUTKIGROSH_PASSWORD));
-            if (!$res) {
-                $error = $hg->getError();
-                $hg->apiLogOut(); // Завершаем сеанс
-                throw new Exception($error);
-            }
-            $localOrderInfo = $this->model_checkout_order->getOrder($this->session->data['order_id']);
-            $webPayRq = new \Alexantr\HootkiGrosh\WebPayRq();
-            $webPayRq->billId = $biilId;
-            $webPayRq->returnUrl = $this->url->link('extension/payment/hutkigrosh/callback') . "&" . "purchaseid=" . $biilId . "&status=complete";
-            $webPayRq->cancelReturnUrl = $this->url->link('extension/payment/hutkigrosh/callback') . "&" . "purchaseid=" . $biilId . "&status=error";
-            $webpayform = $hg->apiWebPay($webPayRq);
-            $hg->apiLogOut();
-            $this->createPage($biilId, $localOrderInfo, $webpayform, $this->language->get('text_webpay_error'));
-        } catch (Exception $e) {
-            return $this->failure($e->getMessage());
-        }
-    }
-
     public function notify()
     {
         try {
-            $this->checkOrderStatus($this->request->get['purchaseid']);
-        } catch (Exception $e) {
-            echo $e->getMessage();
+            $billId = $this->request->get['purchaseid'];
+            $controller = new ControllerNotifyOpencart($this->registry);
+            $controller->process($billId);
+        } catch (Throwable $e) {
+            Logger::getLogger("notify")->error("Exception:", $e);
         }
-    }
-
-
-    #уведомление об оплате
-    protected function checkOrderStatus($purchaseid)
-    {
-        $this->language->load('extension/payment/hutkigrosh');
-        $pendingStatusId = $this->config->get(self::HUTKIGROSH_ORDER_STATUS_PENDING);
-        $payedStatusId = $this->config->get(self::HUTKIGROSH_ORDER_STATUS_PAYED);
-        $errorStatusId = $this->config->get(self::HUTKIGROSH_ORDER_STATUS_ERROR);
-
-        if (!is_numeric($pendingStatusId) || !is_numeric($payedStatusId) || !is_numeric($errorStatusId)) {
-            throw new Exception('Incorrect module configuration');
-        }
-        if (!isset($this->request->get['purchaseid'])) {
-            throw new Exception('Wrong purchaseid');
-        }
-
-        $hg = new \Alexantr\HootkiGrosh\HootkiGrosh($this->config->get(self::HUTKIGROSH_SANDBOX));
-        $res = $hg->apiLogIn($this->config->get(self::HUTKIGROSH_LOGIN), $this->config->get(self::HUTKIGROSH_PASSWORD));
-        if (!$res) {
-            $error = $hg->getError();
-            $hg->apiLogOut(); // Завершаем сеанс
-            throw new Exception($error);
-        }
-        #дополнительно проверим статус счета в hg
-        $hgBillInfo = $hg->apiBillInfo($purchaseid);
-        if (empty($hgBillInfo)) {
-            $error = $hg->getError();
-            $hg->apiLogOut(); // Завершаем сеанс
-            throw new Exception($error);
-        } else {
-            $this->load->model('checkout/order');
-            $localOrderInfo = $this->model_checkout_order->getOrder($hgBillInfo['invId']);
-            if ($localOrderInfo['firstname'] . ' ' . $localOrderInfo['lastname'] != $hgBillInfo['fullName']
-                && $localOrderInfo['total'] != $hgBillInfo['amt']) {
-                throw new Exception("Unmapped purchaseid");
-            }
-            if ($hgBillInfo['statusEnum'] == 'Payed') {
-                if (is_numeric($payedStatusId))
-                    $this->model_checkout_order->addOrderHistory(IntVal($hgBillInfo['invId']), $payedStatusId);
-            } elseif (in_array($hgBillInfo['statusEnum'], array('Outstending', 'DeletedByUser', 'PaymentCancelled'))) {
-                if (is_numeric($errorStatusId))
-                    $this->model_checkout_order->addOrderHistory(IntVal($hgBillInfo['invId']), $errorStatusId);
-            } elseif (in_array($hgBillInfo['statusEnum'], array('PaymentPending', 'NotSet'))) {
-                if (is_numeric($pendingStatusId))
-                    $this->model_checkout_order->addOrderHistory(IntVal($hgBillInfo['invId']), $pendingStatusId);
-            }
-        }
-    }
-
-    protected function createPage($billId, $localOrderInfo, $webpayform, $message)
-    {
-        $this->document->setTitle($this->language->get('heading_title'));
-        $data['webpayform'] = $webpayform;
-        $data['message'] = $message;
-
-        $data['breadcrumbs'] = array();
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_home'),
-            'href' => $this->url->link('common/home')
-        );
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_basket'),
-            'href' => $this->url->link('checkout/cart')
-        );
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_checkout'),
-            'href' => $this->url->link('checkout/checkout', '', true)
-        );
-        $data['breadcrumbs'][] = array(
-            'text' => $this->language->get('text_success'),
-            'href' => $this->url->link('checkout/success')
-        );
-
-        $data['heading_title'] = $this->language->get('heading_title');
-        $data['text_message'] = sprintf($this->language->get('text_erip_instruction'), $this->session->data['order_id'], $this->config->get('hutkigrosh_erip_tree_path'), $this->session->data['order_id']);
-        $data['button_continue'] = $this->language->get('button_continue');
-        $data['continue'] = $this->url->link('checkout/success');
-
-        $data['column_left'] = $this->load->controller('common/column_left');
-        $data['column_right'] = $this->load->controller('common/column_right');
-        $data['content_top'] = $this->load->controller('common/content_top');
-        $data['content_bottom'] = $this->load->controller('common/content_bottom');
-        $data['footer'] = $this->load->controller('common/footer');
-        $data['header'] = $this->load->controller('common/header');
-
-        $data['alfaclickbillID'] = $billId;
-        $data['alfaclickTelephone'] = preg_replace("/[^0-9]/", '', $localOrderInfo['telephone']);
-        $data['alfaclickUrl'] = $this->url->link('extension/payment/hutkigrosh/alfaclick');
-
-        if (file_exists(DIR_TEMPLATE . $this->config->get('config_template') . 'extension/payment/hutkigrosh_checkout_success.tpl')) {
-            $templateView = $this->config->get('config_template') . 'extension/payment/hutkigrosh_checkout_success.tpl';
-        } else {
-            $templateView = 'extension/payment/hutkigrosh_checkout_success.tpl';
-        }
-        $this->response->setOutput($this->load->view($templateView, $data));
     }
 }

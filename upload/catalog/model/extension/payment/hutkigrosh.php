@@ -1,6 +1,6 @@
 <?php
 
-class ModelExtensionPaymentHutkiGrosh extends Model
+class ModelExtensionPaymentHutkigrosh extends Model
 {
     public function getMethod($address, $total)
     {
@@ -18,6 +18,17 @@ class ModelExtensionPaymentHutkiGrosh extends Model
         } else {
             return array();
         }
+    }
+
+    public function saveBillId($orderId, $billId) {
+
+        $sql = 'UPDATE
+                        '.DB_PREFIX.'order     
+                    SET
+                   	    payment_custom_field = "'. $billId . '"
+                    WHERE
+                        order_id = \''.(int)$orderId.'\'';
+        $this->db->query($sql);
     }
 }
 
