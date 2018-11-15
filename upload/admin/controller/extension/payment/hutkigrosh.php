@@ -2,7 +2,7 @@
 
 use esas\hutkigrosh\view\admin\fields\ConfigFieldList;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldNumber;
-use esas\hutkigrosh\view\admin\ConfigurationRenderOpencart;
+use esas\hutkigrosh\view\admin\ConfigFormOpencart;
 use esas\hutkigrosh\view\admin\fields\ListOption;
 use esas\hutkigrosh\utils\Logger as HutkigroshLogger;
 use esas\hutkigrosh\view\admin\validators\ValidatorInteger;
@@ -22,9 +22,9 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
         try {
             $this->load->language('extension/payment/hutkigrosh');
             $this->document->setTitle($this->language->get('heading_title'));
-            $configFieldsRender = $this->createRender();
-            $data['configFieldsRender'] = $configFieldsRender;// Сохранение или обновление данных
-            if (($this->request->server['REQUEST_METHOD'] == 'POST') && ($configFieldsRender->validateAll($this->request->post))) {
+            $configForm = $this->createForm();
+            $data['configForm'] = $configForm;// Сохранение или обновление данных
+            if (($this->request->server['REQUEST_METHOD'] == 'POST') && ($configForm->validateAll($this->request->post))) {
                 $this->load->model('setting/setting');
                 $this->model_setting_setting->editSetting('hutkigrosh', $this->request->post);
                 $this->session->data['success'] = $this->language->get('text_success');
@@ -56,10 +56,10 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
         }
     }
 
-    private function createRender() {
-        $configFieldsRender = new ConfigurationRenderOpencart($this->registry);
-        $configFieldsRender->addRequired();
-        $configFieldsRender->addField(new ConfigFieldNumber(
+    private function createForm() {
+        $configForm = new ConfigFormOpencart($this->registry);
+        $configForm->addRequired();
+        $configForm->addField(new ConfigFieldNumber(
             "hutkigrosh_sort_order",
             $this->language->get('module_sort_order_label'),
             $this->language->get('module_sort_order_description'),
@@ -67,13 +67,13 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
             new ValidatorInteger(1, 20),
             1,
             20));
-        $configFieldsRender->addField(new ConfigFieldList(
+        $configForm->addField(new ConfigFieldList(
             "hutkigrosh_status",
             $this->language->get('module_status_label'),
             $this->language->get('module_status_description'),
             true,
             [new ListOption("1", $this->language->get('module_status_enable')), new ListOption("0", $this->language->get('module_status_disable'))]));
-        return $configFieldsRender;
+        return $configForm;
     }
 
 }

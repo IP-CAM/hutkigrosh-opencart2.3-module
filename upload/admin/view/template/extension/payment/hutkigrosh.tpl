@@ -26,7 +26,7 @@
             <div class="panel-body">
                 <form action="<?php echo $action; ?>" method="post" enctype="multipart/form-data" id="form-webpay"
                       class="form-horizontal">
-                    <?php echo $configFieldsRender->render(); ?>
+                    <?php echo $configForm->generate(); ?>
                 </form>
             </div>
         </div>

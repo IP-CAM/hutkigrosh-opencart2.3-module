@@ -3,8 +3,8 @@ header('Content-Type: text/html; charset=utf-8');
 
 use esas\hutkigrosh\controllers\ControllerAddBill;
 use esas\hutkigrosh\controllers\ControllerAlfaclick;
-use esas\hutkigrosh\controllers\ControllerNotifyOpencart;
-use esas\hutkigrosh\controllers\ControllerWebpayFormOpencart;
+use esas\hutkigrosh\controllers\ControllerNotify;
+use esas\hutkigrosh\controllers\ControllerWebpayFormSimple;
 use esas\hutkigrosh\utils\Logger;
 use esas\hutkigrosh\Registry as HutkigroshRegistry;
 use esas\hutkigrosh\view\client\CompletionPanel;
@@ -53,7 +53,7 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
                 $completionPanel->setAlfaclickUrl($this->url->link('extension/payment/hutkigrosh/alfaclick'));
             }
             if ($configurationWrapper->isWebpayButtonEnabled()) {
-                $controller = new ControllerWebpayFormOpencart($this->registry);
+                $controller = new ControllerWebpayFormSimple($this->registry->get("url")->link('extension/payment/hutkigrosh/pay'));
                 $webpayResp = $controller->process($orderWrapper);
                 $completionPanel->setWebpayForm($webpayResp->getHtmlForm());
                 if (array_key_exists('status', $_REQUEST))
@@ -123,7 +123,7 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
     {
         try {
             $billId = $this->request->get['purchaseid'];
-            $controller = new ControllerNotifyOpencart($this->registry);
+            $controller = new ControllerNotify();
             $controller->process($billId);
         } catch (Throwable $e) {
             Logger::getLogger("notify")->error("Exception:", $e);

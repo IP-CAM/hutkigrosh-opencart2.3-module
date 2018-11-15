@@ -11,6 +11,8 @@ namespace esas\hutkigrosh;
 
 use esas\hutkigrosh\lang\TranslatorOpencart;
 use esas\hutkigrosh\wrappers\ConfigurationWrapperOpencart;
+use esas\hutkigrosh\wrappers\OrderWrapper;
+use esas\hutkigrosh\wrappers\OrderWrapperOpencart;
 
 class RegistryOpencart extends Registry
 {
@@ -36,5 +38,15 @@ class RegistryOpencart extends Registry
     public function createTranslator()
     {
         return new TranslatorOpencart($this->registry);
+    }
+
+    /**
+     * По локальному номеру счета (номеру заказа) возвращает wrapper
+     * @param $orderId
+     * @return OrderWrapper
+     */
+    public function getOrderWrapper($orderNumber)
+    {
+        return new OrderWrapperOpencart($orderNumber, $this->registry);
     }
 }

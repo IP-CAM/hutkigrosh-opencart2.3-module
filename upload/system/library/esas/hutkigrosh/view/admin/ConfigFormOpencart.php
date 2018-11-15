@@ -17,7 +17,7 @@ use esas\hutkigrosh\view\admin\fields\ConfigFieldStatusList;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldTextarea;
 use esas\hutkigrosh\view\admin\fields\ListOption;
 
-class ConfigurationRenderOpencart extends ConfigurationRender
+class ConfigFormOpencart extends ConfigFormHtml
 {
     private $orderStatuses;
 
@@ -37,8 +37,9 @@ class ConfigurationRenderOpencart extends ConfigurationRender
 
     private function addValidationError(ConfigField $configField)
     {
-        if (!$configField->getValidator()->isValid())
-            return '<div class="alert alert-danger">' . $configField->getValidator()->getErrorText() . '</div>';
+        $validationResult = $configField->getValidationResult();
+        if ($validationResult != null && !$validationResult->isValid())
+            return '<div class="alert alert-danger">' . $validationResult->getErrorTextSimple() . '</div>';
         else
             return "";
     }
@@ -50,7 +51,7 @@ class ConfigurationRenderOpencart extends ConfigurationRender
                     </label>';
     }
 
-    function renderTextField(ConfigField $configField)
+    function generateTextField(ConfigField $configField)
     {
         return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
             . $this->addValidationError($configField)
@@ -63,7 +64,7 @@ class ConfigurationRenderOpencart extends ConfigurationRender
                </div>';
     }
 
-    function renderTextAreaField(ConfigFieldTextarea $configField)
+    function generateextAreaField(ConfigFieldTextarea $configField)
     {
         return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
             . $this->addValidationError($configField)
@@ -78,7 +79,7 @@ class ConfigurationRenderOpencart extends ConfigurationRender
                </div>';
     }
 
-    public function renderPasswordField(ConfigFieldPassword $configField)
+    public function generatePasswordField(ConfigFieldPassword $configField)
     {
         return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
             . $this->addValidationError($configField)
@@ -92,7 +93,7 @@ class ConfigurationRenderOpencart extends ConfigurationRender
     }
 
 
-    function renderCheckboxField(ConfigFieldCheckbox $configField)
+    function generateCheckboxField(ConfigFieldCheckbox $configField)
     {
         return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '"> '
             . $this->addValidationError($configField)
@@ -109,13 +110,13 @@ class ConfigurationRenderOpencart extends ConfigurationRender
                </div>';
     }
 
-    function renderStatusListField(ConfigFieldStatusList $configField)
+    function generateStatusListField(ConfigFieldStatusList $configField)
     {
         $configField->setOptions($this->orderStatuses);
-        return $this->renderListField($configField);
+        return $this->generateListField($configField);
     }
 
-    function renderListField(ConfigFieldList $configField)
+    function generateListField(ConfigFieldList $configField)
     {
         return '<div class="form-group">'
             . $this->addValidationError($configField)
