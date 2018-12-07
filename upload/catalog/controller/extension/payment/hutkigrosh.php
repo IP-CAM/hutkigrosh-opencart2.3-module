@@ -56,8 +56,8 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
                 $controller = new ControllerWebpayFormSimple($this->registry->get("url")->link('extension/payment/hutkigrosh/pay'));
                 $webpayResp = $controller->process($orderWrapper);
                 $completionPanel->setWebpayForm($webpayResp->getHtmlForm());
-                if (array_key_exists('status', $_REQUEST))
-                $completionPanel->setWebpayStatus($_REQUEST['status']);
+                if (array_key_exists('webpay_status', $_REQUEST))
+                $completionPanel->setWebpayStatus($_REQUEST['webpay_status']);
             }
             $data['completionPanel'] = $completionPanel;
 

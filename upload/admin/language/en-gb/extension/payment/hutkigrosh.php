@@ -2,7 +2,7 @@
 
 $_['heading_title'] = 'HutkiGrosh';
 
-$_['text_hutkigrosh'] = '<img src="view/image/payment/hgrosh.png" alt="Hutkigrosh" title="ХуткiГрош" style="border: 1px solid #EEEEEE;" />';
+$_['text_hutkigrosh'] = '<img src="view/image/payment/hgrosh.png" alt="Hutkigrosh" title="Hutkigrosh" style="border: 1px solid #EEEEEE;" />';
 $_['text_payment'] = 'Payment';
 $_['text_success'] = 'Module settings have been updated!';
 
