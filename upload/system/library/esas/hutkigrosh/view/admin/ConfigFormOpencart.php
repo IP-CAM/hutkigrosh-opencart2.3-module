@@ -64,7 +64,7 @@ class ConfigFormOpencart extends ConfigFormHtml
                </div>';
     }
 
-    function generateextAreaField(ConfigFieldTextarea $configField)
+    function generateTextAreaField(ConfigFieldTextarea $configField)
     {
         return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
             . $this->addValidationError($configField)

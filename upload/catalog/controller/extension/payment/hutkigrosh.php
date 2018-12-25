@@ -49,10 +49,10 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
                 $controller->process($orderWrapper);
             }
             $completionPanel = new CompletionPanel($orderWrapper);
-            if ($configurationWrapper->isAlfaclickButtonEnabled()) {
+            if ($configurationWrapper->isAlfaclickSectionEnabled()) {
                 $completionPanel->setAlfaclickUrl($this->url->link('extension/payment/hutkigrosh/alfaclick'));
             }
-            if ($configurationWrapper->isWebpayButtonEnabled()) {
+            if ($configurationWrapper->isWebpaySectionEnabled()) {
                 $controller = new ControllerWebpayFormSimple($this->registry->get("url")->link('extension/payment/hutkigrosh/pay'));
                 $webpayResp = $controller->process($orderWrapper);
                 $completionPanel->setWebpayForm($webpayResp->getHtmlForm());
