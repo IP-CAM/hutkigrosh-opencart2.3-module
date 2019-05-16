@@ -20,14 +20,15 @@ class ModelExtensionPaymentHutkigrosh extends Model
         }
     }
 
-    public function saveBillId($orderId, $billId) {
+    public function saveBillId($orderId, $billId)
+    {
 
         $sql = 'UPDATE
-                        '.DB_PREFIX.'order     
+                        `' . DB_PREFIX . 'order`    
                     SET
-                   	    payment_custom_field = "'. $billId . '"
+                   	    payment_custom_field = "' . $billId . '"
                     WHERE
-                        order_id = \''.(int)$orderId.'\'';
+                        order_id = \'' . (int)$orderId . '\'';
         $this->db->query($sql);
     }
 }
