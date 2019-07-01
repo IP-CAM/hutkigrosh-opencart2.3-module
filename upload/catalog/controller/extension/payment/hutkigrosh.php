@@ -3,11 +3,11 @@ header('Content-Type: text/html; charset=utf-8');
 
 use esas\hutkigrosh\controllers\ControllerAddBill;
 use esas\hutkigrosh\controllers\ControllerAlfaclick;
+use esas\hutkigrosh\controllers\ControllerCompletionPage;
 use esas\hutkigrosh\controllers\ControllerNotify;
-use esas\hutkigrosh\controllers\ControllerWebpayFormSimple;
 use esas\hutkigrosh\utils\Logger;
 use esas\hutkigrosh\Registry as HutkigroshRegistry;
-use esas\hutkigrosh\view\client\CompletionPanel;
+use esas\hutkigrosh\utils\RequestParams;
 use esas\hutkigrosh\wrappers\OrderWrapperOpencart;
 
 require_once(dirname(dirname(dirname(dirname(dirname(__FILE__))))) . '/system/library/esas/hutkigrosh/init.php');
@@ -40,7 +40,6 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
                 $this->redirect($this->url->link('checkout/checkout'));
                 return false;
             }
-            $configurationWrapper = HutkigroshRegistry::getRegistry()->getConfigurationWrapper();
             $orderWrapper = new OrderWrapperOpencart($orderId, $this->registry);
             // проверяем, привязан ли к заказу billid, если да,
             // то счет не выставляем, а просто прорисовываем старницу
@@ -48,38 +47,18 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
                 $controller = new ControllerAddBill();
                 $controller->process($orderWrapper);
             }
-            $completionPanel = new CompletionPanel($orderWrapper);
-            if ($configurationWrapper->isAlfaclickSectionEnabled()) {
-                $completionPanel->setAlfaclickUrl($this->url->link('extension/payment/hutkigrosh/alfaclick'));
-            }
-            if ($configurationWrapper->isWebpaySectionEnabled()) {
-                $controller = new ControllerWebpayFormSimple($this->registry->get("url")->link('extension/payment/hutkigrosh/pay'));
-                $webpayResp = $controller->process($orderWrapper);
-                $completionPanel->setWebpayForm($webpayResp->getHtmlForm());
-                if (array_key_exists('webpay_status', $_REQUEST))
-                $completionPanel->setWebpayStatus($_REQUEST['webpay_status']);
-            }
+
+            $controller = new ControllerCompletionPage(
+                $this->url->link('extension/payment/hutkigrosh/alfaclick'),
+                $this->registry->get("url")->link('extension/payment/hutkigrosh/pay'));
+            $completionPanel = $controller->process($orderId);
+
             $data['completionPanel'] = $completionPanel;
 
             $this->language->load('extension/payment/hutkigrosh');
             $this->document->setTitle($this->language->get('heading_title'));
-            $data['breadcrumbs'] = array();
-            $data['breadcrumbs'][] = array(
-                'text' => $this->language->get('text_home'),
-                'href' => $this->url->link('common/home')
-            );
-            $data['breadcrumbs'][] = array(
-                'text' => $this->language->get('text_basket'),
-                'href' => $this->url->link('checkout/cart')
-            );
-            $data['breadcrumbs'][] = array(
-                'text' => $this->language->get('text_checkout'),
-                'href' => $this->url->link('checkout/checkout', '', true)
-            );
-            $data['breadcrumbs'][] = array(
-                'text' => $this->language->get('text_success'),
-                'href' => $this->url->link('checkout/success')
-            );
+            $data['breadcrumbs'] = $this->createBreadcrumbs();
+
             $data['column_left'] = $this->load->controller('common/column_left');
             $data['column_right'] = $this->load->controller('common/column_right');
             $data['content_top'] = $this->load->controller('common/content_top');
@@ -99,16 +78,36 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
         } catch (Throwable $e) {
             Logger::getLogger("payment")->error("Exception:", $e);
             return $this->failure($e->getMessage());
+        } catch (Exception $e) { // для совместимости с php 5
+            Logger::getLogger("payment")->error("Exception:", $e);
+            return $this->failure($e->getMessage());
         }
     }
 
+    private function createBreadcrumbs() {
+        $breadcrumbs = array();
+        $breadcrumbs[] = $this->createBreadcrumb('text_home','common/home');
+        $breadcrumbs[] = $this->createBreadcrumb('text_basket','checkout/cart');
+        $breadcrumbs[] = $this->createBreadcrumb('text_checkout','checkout/checkout');
+        $breadcrumbs[] = $this->createBreadcrumb('text_success','checkout/success');
+        return $breadcrumbs;
+    }
+
+    private function createBreadcrumb($text, $link) {
+        return array(
+            'text' => $this->language->get($text),
+            'href' => $this->url->link($link)
+        );
+    }
 
     public function alfaclick()
     {
         try {
             $controller = new ControllerAlfaclick();
-            $controller->process($this->request->post['billid'], $this->request->post['phone']);
+            $controller->process($this->request->post[RequestParams::BILL_ID], $this->request->post[RequestParams::PHONE]);
         } catch (Throwable $e) {
+            Logger::getLogger("alfaclick")->error("Exception: ", $e);
+        } catch (Exception $e) { // для совместимости с php 5
             Logger::getLogger("alfaclick")->error("Exception: ", $e);
         }
     }
@@ -122,10 +121,12 @@ class ControllerExtensionPaymentHutkiGrosh extends Controller
     public function notify()
     {
         try {
-            $billId = $this->request->get['purchaseid'];
+            $billId = $this->request->get[RequestParams::PURCHASE_ID];
             $controller = new ControllerNotify();
             $controller->process($billId);
         } catch (Throwable $e) {
+            Logger::getLogger("notify")->error("Exception:", $e);
+        } catch (Exception $e) { // для совместимости с php 5
             Logger::getLogger("notify")->error("Exception:", $e);
         }
     }

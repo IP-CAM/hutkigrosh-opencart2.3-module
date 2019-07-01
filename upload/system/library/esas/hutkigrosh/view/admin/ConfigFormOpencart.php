@@ -9,11 +9,12 @@
 
 namespace esas\hutkigrosh\view\admin;
 
+use esas\hutkigrosh\utils\htmlbuilder\Attributes as attribute;
+use esas\hutkigrosh\utils\htmlbuilder\Elements as element;
 use esas\hutkigrosh\view\admin\fields\ConfigField;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldCheckbox;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldList;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldPassword;
-use esas\hutkigrosh\view\admin\fields\ConfigFieldStatusList;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldTextarea;
 use esas\hutkigrosh\view\admin\fields\ListOption;
 
@@ -35,112 +36,155 @@ class ConfigFormOpencart extends ConfigFormHtml
         }
     }
 
-    private function addValidationError(ConfigField $configField)
+    private static function elementValidationError(ConfigField $configField)
     {
         $validationResult = $configField->getValidationResult();
         if ($validationResult != null && !$validationResult->isValid())
-            return '<div class="alert alert-danger">' . $validationResult->getErrorTextSimple() . '</div>';
+            return
+                element::div(
+                    attribute::clazz("alert alert-danger"),
+                    element::content($validationResult->getErrorTextSimple())
+                );
         else
             return "";
     }
 
-    private function addLabel(ConfigField $configField)
+
+    private static function elementLabel(ConfigField $configField)
     {
-        return '<label class="col-sm-2 control-label" for="input-' . $configField->getKey() . '">
-                        <span data-toggle="tooltip" title="' . $configField->getDescription() . '">' . $configField->getName() . '</span>
-                    </label>';
+        return
+            element::label(
+                attribute::clazz("col-sm-2 control-label"),
+                attribute::forr("input-" . $configField->getKey()),
+                element::span(
+                    attribute::data_toggle("tooltip"),
+                    attribute::title($configField->getDescription()),
+                    element::content($configField->getName())
+                )
+            );
+    }
+
+    private static function attributeFormClass(ConfigField $configField)
+    {
+        return attribute::clazz("form-group" . ($configField->isRequired() ? ' required' : ''));
+    }
+
+    private static function elementInput(ConfigField $configField, $type)
+    {
+        return
+            element::input(
+                attribute::clazz("form-control"),
+                attribute::name($configField->getKey()),
+                attribute::type($type),
+                attribute::placeholder($configField->getName()),
+                self::attributeInputId($configField),
+                attribute::value($configField->getValue())
+            );
+    }
+
+    private static function attributeInputId(ConfigField $configField)
+    {
+        return attribute::id("input-" . $configField->getKey());
     }
 
     function generateTextField(ConfigField $configField)
     {
-        return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
-            . $this->addValidationError($configField)
-            . $this->addLabel($configField)
-            . '<div class="col-sm-10">
-                        <input type="text" name="' . $configField->getKey() . '" value="' . $configField->getValue() . '"
-                                   placeholder="' . $configField->getName() . '"
-                                   id="input-' . $configField->getKey() . '" class="form-control">
-                    </div>
-               </div>';
+        return
+            element::div(
+                self::attributeFormClass($configField),
+                self::elementValidationError($configField),
+                self::elementLabel($configField),
+                element::div(
+                    attribute::clazz("col-sm-10"),
+                    self::elementInput($configField, "text")
+                )
+            );
     }
 
     function generateTextAreaField(ConfigFieldTextarea $configField)
     {
-        return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
-            . $this->addValidationError($configField)
-            . $this->addLabel($configField)
-            . '<div class="col-sm-10">
-                        <textarea name="' . $configField->getKey() . '"
-                                   placeholder="' . $configField->getName() . '" 
-                                   rows="' . $configField->getRows() . '"
-                                   cols="' . $configField->getCols() . '"  
-                                   id="input-' . $configField->getKey() . '" class="form-control">' . $configField->getValue() . '</textarea>
-                    </div>
-               </div>';
+        return
+            element::div(
+                self::attributeFormClass($configField),
+                self::elementLabel($configField),
+                self::elementValidationError($configField),
+                element::div(
+                    attribute::clazz("col-sm-10"),
+                    element::textarea(
+                        self::attributeInputId($configField),
+                        attribute::name($configField->getKey()),
+                        attribute::clazz("form-control"),
+                        attribute::rows($configField->getRows()),
+                        attribute::cols($configField->getCols()),
+                        attribute::placeholder($configField->getName()),
+                        element::content($configField->getValue())
+                    )
+                )
+            );
     }
+
 
     public function generatePasswordField(ConfigFieldPassword $configField)
     {
-        return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '">'
-            . $this->addValidationError($configField)
-            . $this->addLabel($configField)
-            . '<div class="col-sm-10">
-                        <input type="password" name="' . $configField->getKey() . '" value="' . $configField->getValue() . '"
-                                   placeholder="' . $configField->getName() . '"
-                                   id="input-' . $configField->getKey() . '" class="form-control">
-                    </div>
-               </div>';
+        return
+            element::div(
+                self::attributeFormClass($configField),
+                self::elementLabel($configField),
+                self::elementValidationError($configField),
+                element::div(
+                    attribute::clazz("col-sm-10"),
+                    self::elementInput($configField, "password")
+                )
+            );
     }
 
 
     function generateCheckboxField(ConfigFieldCheckbox $configField)
     {
-        return '<div class="form-group ' . ($configField->isRequired() ? 'required' : '') . '"> '
-            . $this->addValidationError($configField)
-            . $this->addLabel($configField)
-            . '<div class="col-sm-10">
-                        <input type="checkbox" 
-                            name="' . $configField->getKey() . '" 
-                            value="1"
-                            placeholder="' . $configField->getName() . '"
-                            id="input-' . $configField->getKey() . '"
-                            ' . ($configField->getValue() ? 'checked="checked"' : '') . ' 
-                            class="form-control">
-                    </div>
-               </div>';
-    }
-
-    function generateStatusListField(ConfigFieldStatusList $configField)
-    {
-        $configField->setOptions($this->orderStatuses);
-        return $this->generateListField($configField);
+        return
+            element::div(
+                self::attributeFormClass($configField),
+                self::elementLabel($configField),
+                self::elementValidationError($configField),
+                element::div(
+                    attribute::clazz("col-sm-10"),
+                    element::input(
+                        attribute::type("checkbox"),
+                        attribute::name($configField->getKey()),
+                        self::attributeInputId($configField),
+                        attribute::value("1"),
+                        attribute::checked($configField->isChecked()),
+                        attribute::placeholder($configField->getName()),
+                        attribute::clazz("form-control")
+                    )
+                )
+            );
     }
 
     function generateListField(ConfigFieldList $configField)
     {
-        return '<div class="form-group">'
-            . $this->addValidationError($configField)
-            . $this->addLabel($configField)
-            . '<div class="col-sm-10">
-                        <select class="form-control" 
-                            id="input-' . $configField->getKey() . '" 
-                            name="' . $configField->getKey() . '">' . $this->createOptions($configField) . '
-                        </select>
-                    </div>
-                </div>';
+        return
+            element::div(
+                self::attributeFormClass($configField),
+                self::elementLabel($configField),
+                self::elementValidationError($configField),
+                element::div(
+                    attribute::clazz("col-sm-10"),
+                    element::select(
+                        attribute::clazz("form-control"),
+                        attribute::name($configField->getKey()),
+                        self::attributeInputId($configField),
+                        parent::elementOptions($configField)
+                    )
+                )
+            );
     }
 
-
-    function createOptions(ConfigFieldList $configField)
+    /**
+     * @return ListOption[]
+     */
+    public function createStatusListOptions()
     {
-        $ret = "";
-        foreach ($configField->getOptions() as $option) {
-            if ($option->getValue() == $configField->getValue()) {
-                $ret .= '<option value="' . $option->getValue() . '" selected="selected">' . $option->getName() . '</option>';
-            } else {
-                $ret .= '<option value="' . $option->getValue() . '">' . $option->getName() . '</option>';
-            }
-        }
-        return $ret;
+        return $this->orderStatuses;
     }
 }

@@ -15,11 +15,6 @@
                     $class = 'col-sm-12'; } ?>
         <div id="content" class="<?php echo $class; ?>">
             <?php echo $content_top;
-                    $completionPanel->getViewStyle()
-                        ->setAlfaclickButtonClass("btn btn-primary")
-                        ->setWebpayButtonClass("btn btn-primary")
-                        ->setMsgSuccessClass("alert alert-info")
-                        ->setMsgUnsuccessClass("alert alert-danger");
                     $completionPanel->render(); ?>
             <div><a href="<?php echo $button_continue_link; ?>" class="btn btn-primary"><?php echo $button_continue; ?></a></div>
             <?php echo $content_bottom; ?>

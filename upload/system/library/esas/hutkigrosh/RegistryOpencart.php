@@ -10,6 +10,12 @@ namespace esas\hutkigrosh;
 
 
 use esas\hutkigrosh\lang\TranslatorOpencart;
+use Esas\Hutkigrosh\upload\system\library\esas\hutkigrosh\view\client\CompletionPanelOpencart;
+use esas\hutkigrosh\view\admin\ConfigFormOpencart;
+use esas\hutkigrosh\view\admin\fields\ConfigFieldList;
+use esas\hutkigrosh\view\admin\fields\ConfigFieldNumber;
+use esas\hutkigrosh\view\admin\fields\ListOption;
+use esas\hutkigrosh\view\admin\validators\ValidatorInteger;
 use esas\hutkigrosh\wrappers\ConfigurationWrapperOpencart;
 use esas\hutkigrosh\wrappers\OrderWrapper;
 use esas\hutkigrosh\wrappers\OrderWrapperOpencart;
@@ -49,4 +55,36 @@ class RegistryOpencart extends Registry
     {
         return new OrderWrapperOpencart($orderNumber, $this->registry);
     }
+
+    public function createConfigForm()
+    {
+        $language = $this->registry->get('language');
+        $language->load('extension/payment/hutkigrosh');
+        $configForm = new ConfigFormOpencart($this->registry);
+        $configForm->addRequired();
+        $configForm->addField(new ConfigFieldNumber(
+            "hutkigrosh_sort_order",
+            $language->get('module_sort_order_label'),
+            $language->get('module_sort_order_description'),
+            true,
+            new ValidatorInteger(1, 20),
+            1,
+            20));
+        $configForm->addField(new ConfigFieldList(
+            "hutkigrosh_status",
+            $language->get('module_status_label'),
+            $language->get('module_status_description'),
+            true, [
+            new ListOption("1", $language->get('module_status_enable')),
+            new ListOption("0", $language->get('module_status_disable'))]));
+        return $configForm;
+    }
+
+    public function getCompletionPanel($orderWrapper)
+    {
+        $completionPanel = new CompletionPanelOpencart($orderWrapper);
+        return $completionPanel;
+    }
+
+
 }
