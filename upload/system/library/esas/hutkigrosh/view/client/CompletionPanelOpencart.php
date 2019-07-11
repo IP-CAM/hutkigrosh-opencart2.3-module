@@ -68,4 +68,11 @@ class CompletionPanelOpencart extends CompletionPanel
     {
         return "form-control";
     }
+
+    public function getModuleCSSFilePath()
+    {
+        return dirname(__FILE__) . "/hiddenRadio.css";
+    }
+
+
 }
