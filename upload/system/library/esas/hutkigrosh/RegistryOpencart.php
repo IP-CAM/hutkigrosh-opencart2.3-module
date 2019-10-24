@@ -10,7 +10,7 @@ namespace esas\hutkigrosh;
 
 
 use esas\hutkigrosh\lang\TranslatorOpencart;
-use Esas\Hutkigrosh\upload\system\library\esas\hutkigrosh\view\client\CompletionPanelOpencart;
+use esas\hutkigrosh\view\client\CompletionPanelOpencart;
 use esas\hutkigrosh\view\admin\ConfigFormOpencart;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldList;
 use esas\hutkigrosh\view\admin\fields\ConfigFieldNumber;

@@ -6,7 +6,7 @@
  * Time: 14:11
  */
 
-namespace Esas\Hutkigrosh\upload\system\library\esas\hutkigrosh\view\client;
+namespace esas\hutkigrosh\view\client;
 
 
 use esas\hutkigrosh\view\client\CompletionPanel;
